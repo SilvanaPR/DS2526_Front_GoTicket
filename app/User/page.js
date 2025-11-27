@@ -2,28 +2,31 @@
 import React, { useEffect } from "react";
 import Configuration from "../components/User/Configuration";
 import { useSelector, useDispatch } from 'react-redux';
-//import { fetchUser } from "../../lib/features/user/userSlice";
+// import { fetchUsers } from "../../lib/features/user/userSlice";
 
 export default function UserConfiguration() {
   const dispatch = useDispatch();
-  //const user = useSelector((state) => state.user.currentUser);
+  // const currentUser = useSelector((state) => state.user.currentUser);
 
-  const user = {
+  // Mock de usuario con campos que espera Configuration (userName, userLastName, etc.)
+  const initialUser = {
     userId: "123",
     userEmail: "silvana@example.com",
-    usersType: "ADMIN",
+    userType: "ADMIN",
     userPassword: "123456",
     userName: "Silvana",
-    userPhone: "+58 414 555 1234",
-    userAddress: "Caracas, Venezuela",
-    userAvailable: "YES",
+    userPhoneNumber: "+58 414 555 1234",
+    userDirection: "Caracas, Venezuela",
     userLastName: "Peña",
-    userDelete: false
   };
 
   useEffect(() => {
-    //dispatch(fetchUser());
-  }, []);
+    // Si lo traes del backend:
+    // dispatch(fetchUsers());
+    // y luego seleccionas el usuario en el store.
+  }, [dispatch]);
 
-  return <Configuration user={user} />;
+  // Usa Configuration en modo edición y le pasa initialUser
+  return <Configuration mode="edit" initialUser={initialUser} />;
 }
+

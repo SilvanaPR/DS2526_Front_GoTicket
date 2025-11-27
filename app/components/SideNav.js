@@ -191,6 +191,26 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
                                         </Link>
                                     </li>
 
+                                    <li>
+                                        <Link
+                                            onClick={() => setSidebarOpen(false)}
+                                            name={Link.name}
+                                            href="/User/List"
+                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
+                                        >
+                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                <span
+                                                    className={`${sidebarExpanded
+                                                        ? "lg:hidden opacity-0 ml-0"
+                                                        : "opacity-100 block"
+                                                        }ml-3 whitespace-nowrap `}
+                                                >
+                                                    Listado de Usuarios
+                                                </span>
+                                            </span>
+                                        </Link>
+                                    </li>
+
 
                                 </ul>
                             )}

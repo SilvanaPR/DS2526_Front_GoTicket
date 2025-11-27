@@ -48,3 +48,13 @@ export const apiEvent = axios.create({
     timeout: 10000,
 });
 applyAuthInterceptor(apiEvent);
+
+
+export const apiUser = axios.create({
+    baseURL: process.env.NEXT_PUBLIC_API_URL_USER,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    timeout: 10000,
+});
+applyAuthInterceptor(apiUser);

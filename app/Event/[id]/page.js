@@ -10,7 +10,6 @@ export default function Manage() {
     const params = useParams();
     const id = params?.id;
 
-    // FIX: usa la clave correcta del reducer en el store (events)
     const currentEvent = useSelector((state) => state.events?.selectedEvent);
 
     useEffect(() => {

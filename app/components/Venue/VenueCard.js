@@ -21,6 +21,7 @@ export default function VenueCard({ venue, onEdit }) {
                 {address && <p><span className="font-medium">Dirección:</span> {address}</p>}
                 {capacity != null && <p><span className="font-medium">Capacidad:</span> {capacity}</p>}
             </div>
+
             <div className="mt-2 flex justify-end">
                 <button
                     type="button"

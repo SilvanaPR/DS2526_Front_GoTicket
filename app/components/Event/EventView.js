@@ -79,7 +79,7 @@ function EventView(props) {
             id: ev.id ?? "",
             name: ev.name ?? "",
             description: ev.description ?? "",
-            state: ev.state ?? "CREATED",
+            state: ev.state ?? "Creado",
             image: ev.image ?? "",
             zones: normalizeZones(ev.zones),
             functions: Array.isArray(ev.functions) && ev.functions.length
@@ -169,7 +169,7 @@ function EventView(props) {
                 event: {
                     name: String(formData.name ?? ""),
                     description: String(formData.description ?? ""),
-                    status: String(formData.state ?? "CREATED"),
+                    status: String(formData.state ?? "Creado"),
                 },
                 functions: functions.map(f => ({
                     name: String(f.name ?? ""),

@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { apiEvent } from "../../axios";
 import { getAuthData } from "../../utils/authHelpers";
 
-type EventStatus = "CREATED" | "AVAILABLE" | "FINISHED" | string;
+type EventStatus = "Creado" | "AVAILABLE" | "FINISHED" | string;
 
 export interface Location {
     country: string;
@@ -110,7 +110,7 @@ export const mockEvents: Event[] = [
         id: "a2f0e3b8-7c0f-4f44-9a21-1f6a9e0e0002",
         name: "Feria de Tecnología",
         description: "Exposición de startups e innovación.",
-        state: "CREATED",
+        state: "Creado",
         image: "/images/event-placeholder.png",
         zones: [
             { id: "z-200", name: "General", price: 20.0 },
@@ -139,10 +139,10 @@ export async function fetchEventsMock(): Promise<Event[]> {
 }
 
 const normalizeState = (s: unknown): EventStatus => {
-    if (typeof s !== "string") return "CREATED";
+    if (typeof s !== "string") return "Creado";
     const upper = s.trim().toUpperCase();
     // Soporta: Creado/Disponible/Terminado o inglés
-    if (["CREATED", "CREADO"].includes(upper)) return "CREATED";
+    if (["Creado", "CREADO"].includes(upper)) return "Creado";
     if (["AVAILABLE", "DISPONIBLE"].includes(upper)) return "AVAILABLE";
     if (["FINISHED", "TERMINADO"].includes(upper)) return "FINISHED";
     return upper;
@@ -202,7 +202,7 @@ export const fetchEvents = createAsyncThunk<Event[]>(
                     id: String(ev.id ?? ev.eventId ?? ""),
                     name: String(ev.name ?? ""),
                     description: String(ev.description ?? ""),
-                    state: normalizeState(ev.status ?? ev.state ?? "CREATED"),
+                    state: normalizeState(ev.status ?? ev.state ?? "Creado"),
                     image: "/images/event-placeholder.png",
                     zones: zones.map((z: any): Zone => ({
                         id: String(z.id ?? z.zoneId ?? ""),
@@ -244,7 +244,7 @@ export const fetchEvent = createAsyncThunk<Event, { id: string }>(
                 id: String(ev.id ?? ev.eventId ?? id),
                 name: String(ev.name ?? ""),
                 description: String(ev.description ?? ""),
-                state: normalizeState(ev.status ?? ev.state ?? "CREATED"),
+                state: normalizeState(ev.status ?? ev.state ?? "Creado"),
                 image: "/images/event-placeholder.png",
                 zones: zones.map((z: any): Zone => ({
                     id: String(z.id ?? z.zoneId ?? ""),
@@ -317,16 +317,16 @@ export const createEvent = createAsyncThunk<Event, { event: Partial<Event> }>(
     async ({ event }, { rejectWithValue }) => {
         try {
             if (process.env.NEXT_PUBLIC_USE_MOCKS === "true") {
-                const mockCreated: Event = {
+                const mockCreado: Event = {
                     id: crypto.randomUUID?.() ?? `${Date.now()}`,
                     name: event.name ?? "",
                     description: event.description ?? "",
-                    state: normalizeState(event.state ?? "CREATED"),
+                    state: normalizeState(event.state ?? "Creado"),
                     image: event.image ?? "/images/event-placeholder.png",
                     zones: event.zones ?? [],
                     functions: event.functions ?? [],
                 };
-                return mockCreated;
+                return mockCreado;
             }
             const { userId } = getAuthData();
             const payload = { ...event, userId };

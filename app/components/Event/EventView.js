@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import ImageReader from "../ImageReader";
 import { useDispatch, useSelector } from "react-redux";
-import { createEvent, updateEvent, fetchEvent, fetchEventFunctions, fetchCountries, fetchCities } from "../../../lib/features/event/eventSlice";
+import { createEventFull } from "../../../lib/features/event/eventSlice";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ConfirmationModal from "../ConfirmationModal";
@@ -14,15 +14,14 @@ function EventView(props) {
     const dispatch = useDispatch();
     const router = useRouter();
 
-    const loadingEvent = useSelector((state) => state.event.loadingEvent) || false;
-    // Lee las funciones cargadas por fetchEventFunctions (ajusta el selector al nombre real de tu slice)
-    const eventFunctions = useSelector((state) => state.event.selectedEventFunctions) || [];
+    const loadingEvent = useSelector((state) => state.events?.loadingEvent) || false;
+    const eventFunctions = useSelector((state) => state.events?.selectedEventFunctions) || [];
 
     const [formData, setFormData] = useState({
         id: "",
         name: "",
         description: "",
-        state: "CREATED",
+        state: "Creado",
         image: "",
         zones: [],
         functions: [],
@@ -48,21 +47,19 @@ function EventView(props) {
         return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
     }
 
+    function toISO(val) {
+        if (!val) return null;
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d.toISOString();
+    }
+
     function normalizeFunctions(funcs = []) {
         return (Array.isArray(funcs) ? funcs : []).map(f => ({
             name: f.name ?? "",
             description: f.description ?? "",
-            startDate: toDatetimeLocal(f.startDate ?? f.start_time ?? f.start ?? ""),
-            endDate: toDatetimeLocal(f.endDate ?? f.end_time ?? f.end ?? ""),
-            venue: {
-                name: f.venue?.name ?? "",
-                capacity: String(f.venue?.capacity ?? ""),
-                address: f.venue?.address ?? "",
-                location: {
-                    country: f.venue?.location?.country ?? "",
-                    city: f.venue?.location?.city ?? ""
-                }
-            }
+            startDate: toDatetimeLocal(f.startDate ?? ""),
+            endDate: toDatetimeLocal(f.endDate ?? ""),
+            venueId: f.venueId ?? f.venue?.id ?? ""
         }));
     }
 
@@ -148,40 +145,61 @@ function EventView(props) {
     };
 
     const executeSubmit = async (e) => {
-        console.log("Submitting form data:", formData);
-        if (e) e.preventDefault();
+        e?.preventDefault?.();
         setIsSubmitting(true);
 
         try {
-            const imageUrl = await uploadImageIfNeeded();
-            const payload = {
-                id: formData.id,
-                name: formData.name,
-                description: formData.description,
-                state: formData.state,
-                image: imageUrl, // URL final
-                zones: (formData.zones || []).filter(z => (z.name ?? "").trim() !== ""),
-                functions: formData.functions || []
-            };
+            console.log("EventView - formData antes de enviar:", JSON.stringify(formData, null, 2));
 
-            let result;
-            if (formData.id) {
-                result = await dispatch(updateEvent({ id: formData.id, event: payload }));
-                if (result.error) throw new Error(result.error.message || "Error al modificar el evento");
-                toast.success("Evento modificado exitosamente", {
-                    position: "bottom-right",
-                    className: "text-medium py-6 px-8 rounded-md shadow-lg bg-green-100 text-green-700"
-                });
-            } else {
-                result = await dispatch(createEvent({ event: payload }));
-                if (result.error) throw new Error(result.error.message || "Error al crear el evento");
-                toast.success("Evento creado exitosamente", {
-                    position: "bottom-right",
-                    className: "text-medium py-6 px-8 rounded-md shadow-lg bg-green-100 text-green-700"
-                });
+            // Validación mínima
+            const functions = (formData.functions || [])
+                .filter(f => (f.name ?? "").trim() && f.venueId && f.startDate && f.endDate);
+
+            if (functions.length === 0) {
+                setIsSubmitting(false);
+                toast.error("Debe agregar al menos una función asociada.", { position: "bottom-right" });
+                return;
             }
 
-            setTimeout(() => router.push("/Event"), 1500);
+            // Genera un eventId para asociar en funciones y zonas (si no viene uno)
+            const eventId = formData.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "00000000-0000-0000-0000-000000000000");
+
+            // Construye exactamente el JSON requerido
+            const payload = {
+                event: {
+                    name: String(formData.name ?? ""),
+                    description: String(formData.description ?? ""),
+                    status: String(formData.state ?? "CREATED"),
+                },
+                functions: functions.map(f => ({
+                    name: String(f.name ?? ""),
+                    description: String(f.description ?? ""),
+                    startDate: new Date(f.startDate).toISOString(),
+                    endDate: new Date(f.endDate).toISOString(),
+                    eventId: eventId,
+                    venueId: String(f.venueId),
+                })),
+                zones: (formData.zones || [])
+                    .filter(z => (z.name ?? "").trim() !== "")
+                    .map(z => ({
+                        name: String(z.name ?? ""),
+                        price: Number(z.price ?? 0),
+                        eventId: eventId,
+                    })),
+            };
+
+            // Log JSON exacto antes de enviar
+            console.log("EventView - payload EXACTO:", JSON.stringify(payload, null, 2));
+
+            const res = await dispatch(createEventFull({ payload }));
+            if (res.error) throw new Error(res.error.message || "Error al crear evento");
+
+            toast.success("Evento creado exitosamente", {
+                position: "bottom-right",
+                className: "text-medium py-6 px-8 rounded-md shadow-lg bg-green-100 text-green-700"
+            });
+
+            setTimeout(() => router.push("/Event"), 1200);
         } catch (err) {
             console.error("Error al guardar el evento:", err);
             toast.error("Error al guardar el evento", {
@@ -282,7 +300,7 @@ function EventView(props) {
                                                         viewBox="0 0 24 24"
                                                     >
                                                         <path fillRule="evenodd" d="M13 10a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H14a1 1 0 0 1-1-1Z" clipRule="evenodd" />
-                                                        <path fillRule="evenodd" d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12c0 .556-.227 1.06-.593 1.422A.999.999 0 0 1 20.5 20H4a2.002 2.002 0 0 1-2-2V6Zm6.892 12 3.833-5.356-3.99-4.322a1 1 0 0 0-1.549.097L4 12.879V6h16v9.95l-3.257-3.619a1 1 0 0 0-1.557.088L11.2 18H8.892Z" clipRule="evenodd" />
+                                                        <path fillRule="evenodd" d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12c0 .556-.227 1.06-.593 1.422A.999.999 0 0 1 20.5 20H4a2.002 2.002 0 0 1-2-2V6h16v9.95l-3.257-3.619a1 1 0 0 0-1.557.088L11.2 18H8.892Z" clipRule="evenodd" />
                                                     </svg>
                                                 </div>
                                             )}

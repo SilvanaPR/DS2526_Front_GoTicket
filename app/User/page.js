@@ -1,32 +1,32 @@
 "use client";
 import React, { useEffect } from "react";
 import Configuration from "../components/User/Configuration";
-import { useSelector, useDispatch } from 'react-redux';
-// import { fetchUsers } from "../../lib/features/user/userSlice";
+import { useSelector, useDispatch } from "react-redux";
+import { useRouter } from "next/navigation";
+import { fetchUserById } from "../../lib/features/user/userSlice";
 
 export default function UserConfiguration() {
+  const router = useRouter();
   const dispatch = useDispatch();
-  // const currentUser = useSelector((state) => state.user.currentUser);
 
-  // Mock de usuario con campos que espera Configuration (userName, userLastName, etc.)
-  const initialUser = {
-    userId: "123",
-    userEmail: "silvana@example.com",
-    userType: "ADMIN",
-    userPassword: "123456",
-    userName: "Silvana",
-    userPhoneNumber: "+58 414 555 1234",
-    userDirection: "Caracas, Venezuela",
-    userLastName: "Peña",
-  };
+  const authUserId = useSelector((s) => s.auth.userInfo?.sub);
+  const loading = useSelector((s) => s.user.loading) || false;
+  const currentUser = useSelector((s) => s.user.currentUser) || null;
 
   useEffect(() => {
-    // Si lo traes del backend:
-    // dispatch(fetchUsers());
-    // y luego seleccionas el usuario en el store.
-  }, [dispatch]);
+    if (!authUserId) {
+      // sin token, envía al login
+      router.push("/Login");
+      return;
+    }
+    // trae del backend los datos del usuario loggeado
+    dispatch(fetchUserById(String(authUserId)));
+  }, [authUserId, dispatch, router]);
 
-  // Usa Configuration en modo edición y le pasa initialUser
-  return <Configuration mode="edit" initialUser={initialUser} />;
+  if (!authUserId || (loading && !currentUser)) {
+    return <div className="p-6 text-sm text-gray-600">Cargando usuario...</div>;
+  }
+
+  return <Configuration mode="edit" initialUser={currentUser} />;
 }
 

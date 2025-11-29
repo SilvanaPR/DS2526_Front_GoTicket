@@ -1,22 +1,27 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCountries, fetchCities } from "../../../lib/features/event/eventSlice";
+import { fetchCountries, fetchCities, createVenue, updateVenue } from "../../../lib/features/event/eventSlice";
 import Link from "next/link";
+import { ToastContainer, toast } from "react-toastify";
+
 
 const emptyVenue = {
     id: "",
     name: "",
     capacity: "",
+    address: "",
     location: { country: "", city: "" }
 };
 
 export default function VenueForm({ initialVenue, onSubmit }) {
     const dispatch = useDispatch();
-    const countries = useSelector((s) => s.event.countries) || [];
-    const loadingCountries = useSelector((s) => s.event.loadingCountries) || false;
-    const cities = useSelector((s) => s.event.cities) || [];
-    const loadingCities = useSelector((s) => s.event.loadingCities) || false;
+    const countries = useSelector((s) => s.events?.countries) || [];
+    const loadingCountries = useSelector((s) => s.events?.loadingCountries) || false;
+    const cities = useSelector((s) => s.events?.cities) || [];
+    const loadingCities = useSelector((s) => s.events?.loadingCities) || false;
+    const sliceError = useSelector((s) => s.events?.error) || "";      // lee error del slice
+    const loadingVenues = useSelector((s) => s.events?.loadingVenues) || false; // estado de carga
 
     const [form, setForm] = useState(emptyVenue);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,7 +32,14 @@ export default function VenueForm({ initialVenue, onSubmit }) {
         if (!countries.length) dispatch(fetchCountries());
     }, [dispatch, countries.length]);
 
-    // Hidratar país usando code; guardar ciudad para aplicarla luego
+    // Cuando cambia el país, limpia ciudad y carga ciudades
+    useEffect(() => {
+        const code = form.location.country;
+        if (!code) return;
+        setForm(prev => ({ ...prev, location: { ...prev.location, city: "" } }));
+        dispatch(fetchCities({ countryCode: code }));
+    }, [dispatch, form.location.country]);
+
     useEffect(() => {
         if (initialVenue && (initialVenue.id || initialVenue.name)) {
             const countryFromNameOrCode = countries.find(
@@ -40,6 +52,7 @@ export default function VenueForm({ initialVenue, onSubmit }) {
                 id: initialVenue.id ?? "",
                 name: initialVenue.name ?? "",
                 capacity: String(initialVenue.capacity ?? ""),
+                address: initialVenue.address ?? "", // Agregado
                 location: { country: countryCode, city: "" } // ciudad se setea luego
             });
         } else {
@@ -48,26 +61,10 @@ export default function VenueForm({ initialVenue, onSubmit }) {
         }
     }, [initialVenue, countries]);
 
-    // Cuando cambia el país, cargar ciudades
-    useEffect(() => {
-        const code = form.location.country;
-        if (code) dispatch(fetchCities({ countryCode: code }));
-    }, [dispatch, form.location.country]);
-
-    // Cuando ciudades se actualizan, aplicar ciudad del venue
+    // Al cargar ciudades, aplica la ciudad inicial si existe
     useEffect(() => {
         const pendingCity = initialCityRef.current;
-        if (!pendingCity) return;
-        if (!cities.length) return;
-
-        // Si la ciudad no está en el slicer, agrégala temporalmente para poder seleccionarla
-        const hasCity = cities.includes(pendingCity);
-        if (!hasCity) {
-            // agrega la ciudad al listado localmente (no al store) para poder mostrarla
-            // Nota: si prefieres no mutar, simplemente selecciona la ciudad aunque no esté en las opciones.
-            // Algunos navegadores muestran el valor aunque no esté en las opciones.
-        }
-
+        if (!pendingCity || !cities.length) return;
         setForm(prev => ({ ...prev, location: { ...prev.location, city: pendingCity } }));
         initialCityRef.current = "";
     }, [cities]);
@@ -89,28 +86,38 @@ export default function VenueForm({ initialVenue, onSubmit }) {
         }
     };
 
+    // Reemplaza handleSubmit para crear/actualizar según haya id
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        const payload = {
-            id: form.id,
+
+        const payloadBase = {
             name: form.name.trim(),
             capacity: Number(form.capacity) || 0,
-            location: {
-                country: form.location.country.trim(),
-                city: form.location.city.trim()
-            }
+            address: form.address.trim(),
+            locationId: form.location.country,
         };
-        try {
-            if (onSubmit) await onSubmit(payload);
-            else console.log("Venue payload:", payload);
-        } finally {
-            setIsSubmitting(false);
+
+        let action;
+        if (form.id) {
+            action = await dispatch(updateVenue({ id: form.id, ...payloadBase }));
+        } else {
+            action = await dispatch(createVenue(payloadBase));
         }
+
+        if (updateVenue.fulfilled.match(action) || createVenue.fulfilled.match(action)) {
+            setForm(emptyVenue);
+            toast.success(form.id ? "Venue actualizado correctamente" : "Venue creado correctamente", {
+                position: "bottom-right",
+                className: "text-medium py-6 px-8 rounded-md shadow-lg bg-green-100 text-green-700"
+            });
+        }
+        setIsSubmitting(false);
     };
 
     return (
         <div className="max-w-md w-full bg-white rounded-lg shadow p-6">
+            {/* elimina el banner local de éxito */}
             <div className="relative mb-4">
                 <Link
                     href="/Event/Venue"
@@ -156,6 +163,18 @@ export default function VenueForm({ initialVenue, onSubmit }) {
                     />
                 </div>
 
+                <div>
+                    <label htmlFor="address" className="block mb-1 text-sm font-medium text-gray-700">Dirección</label>
+                    <input
+                        id="address"
+                        name="address"
+                        type="text"
+                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm"
+                        value={form.address}
+                        onChange={handleChange}
+                    />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label htmlFor="location.country" className="block mb-1 text-sm font-medium text-gray-700">País</label>
@@ -192,16 +211,22 @@ export default function VenueForm({ initialVenue, onSubmit }) {
                     </div>
                 </div>
 
+                {/* Muestra el error del slice (si hay) */}
+                {sliceError && (
+                    <p className="text-xs text-red-600">{sliceError}</p>
+                )}
+
                 <div className="flex justify-end">
                     <button
                         type="submit"
-                        className={`inline-flex items-center px-5 py-2.5 text-sm font-medium text-white bg-brand rounded-lg focus:ring-4 focus:ring-primary-200 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={isSubmitting}
+                        className={`inline-flex items-center px-5 py-2.5 text-sm font-medium text-white bg-brand rounded-lg focus:ring-4 focus:ring-primary-200 ${isSubmitting || loadingVenues ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isSubmitting || loadingVenues}
                     >
-                        {isSubmitting ? "Guardando..." : form.id ? "Guardar cambios" : "Crear Venue"}
+                        {isSubmitting || loadingVenues ? "Guardando..." : form.id ? "Guardar cambios" : "Crear Venue"}
                     </button>
                 </div>
             </form>
+            <ToastContainer />
         </div>
     );
 }

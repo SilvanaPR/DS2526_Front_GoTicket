@@ -1,16 +1,12 @@
-'use client'
-import { useRef } from 'react'
-import { Provider } from 'react-redux'
-import { makeStore, AppStore } from '../lib/store'
+"use client";
+import { Provider } from "react-redux";
+import { store } from "../lib/store";
+import { useEffect } from "react";
+import { hydrateFromStorage } from "../lib/features/auth/authSlice";
 
-export default function StoreProvider({
-  children
-}: {
-  children: React.ReactNode
-}) {
-  const storeRef = useRef<AppStore>();
-  if (!storeRef.current) {
-    storeRef.current = makeStore();
-  }
-  return <Provider store={storeRef.current}>{children}</Provider>
+export default function StoreProvider({ children }) {
+  useEffect(() => {
+    store.dispatch(hydrateFromStorage());
+  }, []);
+  return <Provider store={store}>{children}</Provider>;
 }

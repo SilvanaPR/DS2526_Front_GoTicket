@@ -1,16 +1,18 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import EventCard from "../components/Event/EventCard";
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector, useDispatch } from "react-redux";
 import { fetchEvents } from "../../lib/features/event/eventSlice";
-import { ToastContainer, toast } from 'react-toastify';
-import SearchBar from '../components/SearchBar';
-import ConfirmationModal from '../components/ConfirmationModal';
+import { ToastContainer, toast } from "react-toastify";
+import SearchBar from "../components/SearchBar";
+import ConfirmationModal from "../components/ConfirmationModal";
 
 export default function EventPage() {
-  const events = useSelector((state) => state.event.events);
-  const loading = useSelector((state) => state.event.loadingEvents);
   const dispatch = useDispatch();
+  const events = useSelector(s => s?.events?.events ?? []);
+  const loading = useSelector(s => s?.events?.loading ?? false);
+  const error = useSelector(s => s?.events?.error ?? null);
+
   const [eventsList, setEventList] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const eventsPerPage = 8;

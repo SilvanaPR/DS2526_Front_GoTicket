@@ -19,7 +19,6 @@ interface UserState {
     error: string | null;
     creating: boolean;
     createError: string | null;
-    // nuevos estados opcionales
     resetting?: boolean;
     resetError?: string | null;
 }
@@ -93,19 +92,18 @@ export const fetchUserById = createAsyncThunk<User, string>(
     "user/fetchUserById",
     async (userId, { rejectWithValue }) => {
         try {
-            // Ajusta si tu backend espera query ?usersId=... o body; aquí uso query:
-            const { data } = await apiUser.get(`/users/GetUserById`, { params: { usersId: userId } });
-            // Normaliza respuesta
+            const { data } = await apiUser.get("/users/GetUserById", { params: { usersId: userId } });
             const u = data ?? {};
             return {
                 id: String(u.id ?? u.userId ?? userId),
-                userName: String(u.userName ?? ""),
-                userLastName: String(u.userLastName ?? ""),
-                userEmail: String(u.userEmail ?? ""),
-                userPhoneNumber: String(u.userPhoneNumber ?? ""),
-                userDirection: String(u.userDirection ?? ""),
-                userType: String(u.userType ?? ""),
-            };
+                userId: String(u.userId ?? u.id ?? userId),
+                userName: u.userName ?? "",
+                userLastName: u.userLastName ?? "",
+                userEmail: u.userEmail ?? "",
+                userPhoneNumber: u.userPhoneNumber ?? "",
+                userDirection: u.userDirection ?? "",
+                userType: u.userType ?? "",
+            } as User;
         } catch (err: any) {
             return rejectWithValue(err?.response?.data?.message ?? err?.message ?? "Error al cargar usuario");
         }
@@ -202,16 +200,10 @@ const userSlice = createSlice({
 
         // fetchUserById
         builder
-            .addCase(fetchUserById.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(fetchUserById.fulfilled, (state, action: PayloadAction<User>) => {
+            .addCase(fetchUserById.pending, (state) => { state.loading = true; state.error = null; })
+            .addCase(fetchUserById.fulfilled, (state, action) => {
                 state.loading = false;
                 state.currentUser = action.payload;
-                // opcional: sincroniza en la lista si existe
-                const idx = state.users.findIndex(u => (u.id ?? u.userId) === (action.payload.id ?? action.payload.userEmail));
-                if (idx >= 0) state.users[idx] = action.payload;
             })
             .addCase(fetchUserById.rejected, (state, action) => {
                 state.loading = false;

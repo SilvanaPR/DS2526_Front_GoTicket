@@ -3,15 +3,36 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
-//import { useAuth } from "@/lib/contexts/auth";
+import { useSelector, useDispatch } from "react-redux";
+import { logout } from "../../lib/features/auth/authSlice";
+import ConfirmationModal from "./ConfirmationModal"; // <-- add
+import { fetchUserById } from "../../lib/features/user/userSlice"; // <-- add
 
 export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [showEventSubmenu, setShowEventSubmenu] = useState(false);
     const [showConfigurationSubmenu, setShowConfigurationSubmenu] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false); // <-- add
     const sidebar = useRef(null);
     const router = useRouter();
-    //const { logout } = useAuth();
+    const dispatch = useDispatch();
+    const authInfo = useSelector(s => s.auth?.userInfo);
+    const isAuthenticated = useSelector(s => !!s.auth?.token || !!s.auth?.userInfo);
+    const currentUser = useSelector(s => s.user.currentUser) || null;
+
+
+    useEffect(() => {
+        const userId = authInfo?.sub;
+        if (isAuthenticated && userId && !currentUser) {
+            dispatch(fetchUserById(String(userId)));
+        }
+    }, [isAuthenticated, authInfo?.sub, currentUser, dispatch]);
+
+
+    const isAdmin = (() => {
+        const t = currentUser?.userType?.trim()?.toLowerCase() || "";
+        return t === "administrator" || t === "administrador";
+    })();
 
     useEffect(() => {
         if (sidebarExpanded) {
@@ -28,6 +49,24 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
             setShowAuctionSubmenu(false);
         }
     };
+
+    const handleLogout = () => {
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = () => {
+        dispatch(logout());
+        setShowConfigurationSubmenu(false);
+        setSidebarOpen(false);
+        setShowLogoutModal(false);
+
+
+        if (typeof window !== "undefined") {
+            window.location.assign("/Login");
+        }
+    };
+
+    const cancelLogout = () => setShowLogoutModal(false);
 
     return (
         <>
@@ -74,7 +113,6 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
 
                 {/* Links */}
                 <div className="space-y-4">
-
                     <ul className="space-y-2">
                         {/* PROFILE CONFIGURATION */}
                         <li>
@@ -83,7 +121,7 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
                                     if (!sidebarExpanded) {
                                         setShowConfigurationSubmenu(!showConfigurationSubmenu);
                                     } else {
-                                        router.push("/Configuration");
+                                        router.push(isAuthenticated ? "/User" : "/Login");
                                         setSidebarOpen(false);
                                     }
                                 }}
@@ -109,109 +147,109 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
                                     )}
                                 </span>
                             </button>
+
                             {showConfigurationSubmenu && (
                                 <ul className="ml-10 mt-1 space-y-1">
-                                    {/* SI NO HA INICIADO SESION */}
+                                    {/* Mostrar opciones según autenticación */}
+                                    {!isAuthenticated ? (
+                                        <>
+                                            <li>
+                                                <Link
+                                                    onClick={() => setSidebarOpen(false)}
+                                                    name={Link.name}
+                                                    href="/Login"
+                                                    className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
+                                                >
+                                                    <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                        <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                            Inicio de Sesión
+                                                        </span>
+                                                    </span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    onClick={() => setSidebarOpen(false)}
+                                                    name={Link.name}
+                                                    href="/User/Create"
+                                                    className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
+                                                >
+                                                    <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                        <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                            Regístrate
+                                                        </span>
+                                                    </span>
+                                                </Link>
+                                            </li>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {isAuthenticated && (
+                                                <>
+                                                    <li>
+                                                        <Link
+                                                            onClick={() => setSidebarOpen(false)}
+                                                            name={Link.name}
+                                                            href="/User"
+                                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
+                                                        >
+                                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                                <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                                    Mi Perfil
+                                                                </span>
+                                                            </span>
+                                                        </Link>
+                                                    </li>
+                                                    <li>
+                                                        <Link
+                                                            onClick={() => setSidebarOpen(false)}
+                                                            name={Link.name}
+                                                            href="/User/ChangePassword"
+                                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
+                                                        >
+                                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                                <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                                    Cambio de Contraseña
+                                                                </span>
+                                                            </span>
+                                                        </Link>
+                                                    </li>
 
-                                    <li>
-                                        <Link
-                                            onClick={() => setSidebarOpen(false)}
-                                            name={Link.name}
-                                            href="/User"
-                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
-                                        >
-                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
-                                                >
-                                                    Inicio de Sesión
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link
-                                            onClick={() => setSidebarOpen(false)}
-                                            name={Link.name}
-                                            href="/User/Create"
-                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
-                                        >
-                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
-                                                >
-                                                    Regístrate
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
-                                    {/* SI YA INICIO SESION */}
-                                    <li>
-                                        <Link
-                                            onClick={() => setSidebarOpen(false)}
-                                            name={Link.name}
-                                            href="/User"
-                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
-                                        >
-                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
-                                                >
-                                                    Mi Perfil
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link
-                                            onClick={() => setSidebarOpen(false)}
-                                            name={Link.name}
-                                            href="/User/ChangePassword"
-                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
-                                        >
-                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
-                                                >
-                                                    Cambio de Contraseña
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
+                                                    {isAdmin && (
+                                                        <li>
+                                                            <Link
+                                                                onClick={() => setSidebarOpen(false)}
+                                                                name={Link.name}
+                                                                href="/User/List"
+                                                                className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
+                                                            >
+                                                                <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                                    <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                                        Listado de Usuarios
+                                                                    </span>
+                                                                </span>
+                                                            </Link>
+                                                        </li>
+                                                    )}
 
-                                    <li>
-                                        <Link
-                                            onClick={() => setSidebarOpen(false)}
-                                            name={Link.name}
-                                            href="/User/List"
-                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
-                                        >
-                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
-                                                >
-                                                    Listado de Usuarios
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
-
-
+                                                    {/* Cerrar Sesión */}
+                                                    <li>
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleLogout}
+                                                            className="block w-full text-left p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
+                                                        >
+                                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                                <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                                    Cerrar Sesión
+                                                                </span>
+                                                            </span>
+                                                        </button>
+                                                    </li>
+                                                </>
+                                            )}
+                                        </>
+                                    )}
                                 </ul>
                             )}
                         </li>
@@ -256,8 +294,7 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
                             </button>
                             {showEventSubmenu && (
                                 <ul className="ml-10 mt-1 space-y-1">
-                                    {/* SI NO HA INICIADO SESION */}
-
+                                    {/* Siempre visible */}
                                     <li>
                                         <Link
                                             onClick={() => setSidebarOpen(false)}
@@ -266,56 +303,46 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
                                             className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
                                         >
                                             <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
-                                                >
+                                                <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
                                                     Listado de Eventos
                                                 </span>
                                             </span>
                                         </Link>
                                     </li>
-                                    {/* SI YA INICIO SESION */}
-                                    <li>
-                                        <Link
-                                            onClick={() => setSidebarOpen(false)}
-                                            name={Link.name}
-                                            href="/Event/Create"
-                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
-                                        >
-                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
+
+                                    {/* Solo si ha iniciado sesión */}
+                                    {isAuthenticated && (
+                                        <>
+                                            <li>
+                                                <Link
+                                                    onClick={() => setSidebarOpen(false)}
+                                                    name={Link.name}
+                                                    href="/Event/Create"
+                                                    className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
                                                 >
-                                                    Crear Evento
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link
-                                            onClick={() => setSidebarOpen(false)}
-                                            name={Link.name}
-                                            href="/Event/Venue"
-                                            className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
-                                        >
-                                            <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
-                                                <span
-                                                    className={`${sidebarExpanded
-                                                        ? "lg:hidden opacity-0 ml-0"
-                                                        : "opacity-100 block"
-                                                        }ml-3 whitespace-nowrap `}
+                                                    <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                        <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                            Crear Evento
+                                                        </span>
+                                                    </span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    onClick={() => setSidebarOpen(false)}
+                                                    name={Link.name}
+                                                    href="/Event/Venue"
+                                                    className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium"
                                                 >
-                                                    Venues
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
+                                                    <span className="block p-1 text-sm text-gray-700 hover:text-black hover:font-medium">
+                                                        <span className={`${sidebarExpanded ? "lg:hidden opacity-0 ml-0" : "opacity-100 block"} ml-3 whitespace-nowrap`}>
+                                                            Venues
+                                                        </span>
+                                                    </span>
+                                                </Link>
+                                            </li>
+                                        </>
+                                    )}
                                 </ul>
                             )}
                         </li>
@@ -346,15 +373,17 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
                         </button>
                     </div>
                 </div>
-                <div className="mt-auto p-4">
-                    <button
-                        onClick={/*logout*/ console.log("Logout clicked")}
-                        className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded"
-                    >
-                        Logout
-                    </button>
-                </div>
             </div>
+
+            {/* Confirmación de cierre de sesión */}
+            {showLogoutModal && (
+                <ConfirmationModal
+                    onCancel={cancelLogout}
+                    onConfirm={confirmLogout}
+                    message="¿Deseas cerrar sesión?"
+                    loading={false}
+                />
+            )}
         </>
     );
 }

@@ -74,15 +74,7 @@ export default function EventCard({ event, onDeleteClick }) {
           </p>
 
           <div className="flex items-center justify-end gap-1">
-            <Link
-              href={`/Event/${event.id}`}
-              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            >
-              <span className="sr-only">Ver detalle</span>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-5 w-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6A2.25 2.25 0 0 0 5.25 5.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l9-6v18l-9-6V9Z" />
-              </svg>
-            </Link>
+
 
             <button
               type="button"

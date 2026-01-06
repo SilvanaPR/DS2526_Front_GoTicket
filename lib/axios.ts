@@ -8,6 +8,15 @@ const eventBaseURL = process.env.NEXT_PUBLIC_API_URL_EVENT;
 export const apiUser = axios.create({ baseURL: userBaseURL });
 export const apiEvent = axios.create({ baseURL: eventBaseURL });
 
+// Fuerza JSON en mutaciones (igual que Swagger)
+const jsonHeaders = { "Content-Type": "application/json" } as const;
+apiUser.defaults.headers.post = { ...(apiUser.defaults.headers.post || {}), ...jsonHeaders };
+apiUser.defaults.headers.put = { ...(apiUser.defaults.headers.put || {}), ...jsonHeaders };
+apiUser.defaults.headers.patch = { ...(apiUser.defaults.headers.patch || {}), ...jsonHeaders };
+apiEvent.defaults.headers.post = { ...(apiEvent.defaults.headers.post || {}), ...jsonHeaders };
+apiEvent.defaults.headers.put = { ...(apiEvent.defaults.headers.put || {}), ...jsonHeaders };
+apiEvent.defaults.headers.patch = { ...(apiEvent.defaults.headers.patch || {}), ...jsonHeaders };
+
 // Utilidad para setear/leer token (reutiliza tu authSlice si prefieres)
 export const setAuthToken = (token: string) => {
     try { localStorage.setItem("auth_token", token); } catch { }
@@ -45,7 +54,7 @@ const handleError = (baseURL: string) => (err: any) => {
         data: err?.response?.data,
     });
 
-    // Evita redirigir si ya estás en /Login o si la petición es del propio login
+
     const isAuthEndpoint =
         reqUrl.toLowerCase().includes("/auth") ||
         reqUrl.toLowerCase().includes("/login") ||
@@ -53,9 +62,7 @@ const handleError = (baseURL: string) => (err: any) => {
 
     if (status === 401 && isBrowser && !onLoginPage && !isAuthEndpoint && !hasRedirected401) {
         hasRedirected401 = true;
-        // no uses alert; solo redirige una vez
         window.location.href = "/Login";
-        // resetea el flag después de unos segundos para permitir futuros intentos
         setTimeout(() => { hasRedirected401 = false; }, 5000);
     }
 
@@ -65,9 +72,11 @@ const handleError = (baseURL: string) => (err: any) => {
 apiUser.interceptors.response.use(r => r, handleError(userBaseURL || ""));
 apiEvent.interceptors.response.use(r => r, handleError(eventBaseURL || ""));
 
-// Endpoints (event y venue comparten host)
+
 export const eventApi = {
-    createFull: (payload: any) => apiEvent.post("/api/event/create-full", payload),
+    createFull: (payload: any) => apiEvent.post("/api/event/create-full", payload, {
+        headers: { "Content-Type": "application/json" },
+    }),
     listVenues: () => apiEvent.get("/api/venue"),
     listLocations: () => apiEvent.get("/api/location"),
     listCitiesByLocation: (id: string) => apiEvent.get(`/api/location/${id}/cities`),

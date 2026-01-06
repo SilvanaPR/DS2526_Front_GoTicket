@@ -3,6 +3,7 @@ import { apiUser } from "../../axios";
 
 export interface User {
     id?: string;
+    userId?: string;
     userName: string;
     userLastName: string;
     userEmail: string;

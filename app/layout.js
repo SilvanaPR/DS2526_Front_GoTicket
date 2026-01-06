@@ -23,16 +23,17 @@ export default function RootLayout({ children }) {
       <body className="bg-gray-50">
         <StoreProvider>
           <div className="flex min-h-screen">
-            {/* Sidebar siempre visible */}
-            <div className={`h-screen border-r bg-white ${sidebarOpen ? "w-64" : "w-64"} shrink-0`}>
+            {/* Sidebar: colapsa a 0 cuando está cerrado */}
+            <div
+              className={`h-screen bg-white transition-all duration-200 overflow-hidden ${sidebarOpen ? "w-64 border-r" : "w-0 border-r-0"
+                } shrink-0`}
+            >
               <Sidenav sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             </div>
 
-            {/* Contenido centrado independientemente del estado del sidebar */}
+            {/* Contenido */}
             <main className="flex-1 min-h-screen flex items-center justify-center px-6 py-8">
-              <div className="w-full max-w-6xl">
-                {children}
-              </div>
+              <div className="w-full max-w-6xl">{children}</div>
             </main>
           </div>
         </StoreProvider>

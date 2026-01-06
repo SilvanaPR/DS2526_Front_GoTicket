@@ -82,7 +82,7 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
             <div
                 id="sidebar"
                 ref={sidebar}
-                className={`fixed flex flex-col z-40 left-0 top-0 lg:static lg:left-auto lg:top-auto lg:translate-x-0 h-screen overflow-y-scroll lg:overflow-y-auto no-scrollbar lg:w-64 w-72 bg-white lg:sidebar-expanded:w-20 shrink-0 border-r border-gray-200 sm:translate-x-0 p-4 transition-all duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-72"
+                className={`fixed flex flex-col z-40 left-0 top-0 lg:translate-x-0 h-screen overflow-y-scroll lg:overflow-y-auto no-scrollbar lg:w-64 w-72 bg-white lg:sidebar-expanded:w-20 shrink-0 border-r border-gray-200 sm:translate-x-0 p-4 transition-all duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-72"
                     }`}
             >
                 <div className="w-full px-3 sm:px-2 mb-6">
@@ -287,7 +287,12 @@ export default function Sidenav({ sidebarOpen, setSidebarOpen }) {
                                 <span className="ml-auto">
                                     {!sidebarExpanded && (
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" >
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showConfigurationSubmenu ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d={showEventSubmenu ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
+                                            />
                                         </svg>
                                     )}
                                 </span>

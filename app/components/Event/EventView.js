@@ -10,6 +10,8 @@ import { ToastContainer, toast } from "react-toastify";
 import FunctionsEditor from "./FunctionsEditor";
 import ZoneEditor from "./ZoneEditor";
 
+const emptyFunction = { name: "", description: "", startDate: "", endDate: "", venueId: "" };
+
 function EventView(props) {
     const dispatch = useDispatch();
     const router = useRouter();
@@ -24,7 +26,10 @@ function EventView(props) {
         state: "Creado",
         image: "",
         zones: [],
-        functions: [],
+        functions: [emptyFunction],
+        discountCode: "",
+        discountPer: 0,
+        discountStatus: "Activo"
     });
 
     // ADD: estados faltantes
@@ -54,23 +59,24 @@ function EventView(props) {
     }
 
     function normalizeFunctions(funcs = []) {
-        return (Array.isArray(funcs) ? funcs : []).map(f => ({
+        const arr = (Array.isArray(funcs) ? funcs : []).map(f => ({
             name: f.name ?? "",
             description: f.description ?? "",
             startDate: toDatetimeLocal(f.startDate ?? ""),
             endDate: toDatetimeLocal(f.endDate ?? ""),
             venueId: f.venueId ?? f.venue?.id ?? ""
         }));
+        return arr.length ? arr : [emptyFunction];
     }
 
     function normalizeZones(zones = []) {
         return (Array.isArray(zones) ? zones : []).map(z => ({
             name: z.name ?? "",
-            price: String(z.price ?? z.amount ?? 0)
+            price: String(z.price ?? z.amount ?? 0),
+            capacity: String(z.capacity ?? 0),
         }));
     }
 
-    // Hidratar desde props.event
     useEffect(() => {
         const ev = props.event;
         if (!ev) return;
@@ -82,20 +88,19 @@ function EventView(props) {
             state: ev.state ?? "Creado",
             image: ev.image ?? "",
             zones: normalizeZones(ev.zones),
-            functions: Array.isArray(ev.functions) && ev.functions.length
-                ? normalizeFunctions(ev.functions)
-                : prev.functions
+            functions: normalizeFunctions(ev.functions),
+            discountCode: ev.discountCode ?? "",
+            discountPer: ev.discountPer ?? 0,
+            discountStatus: ev.discountStatus ?? "Activo"
         }));
     }, [props.event]);
 
-    // Si las funciones llegan por separado del slicer
     useEffect(() => {
         if (eventFunctions.length) {
             setFormData(prev => ({ ...prev, functions: normalizeFunctions(eventFunctions) }));
         }
     }, [eventFunctions]);
 
-    // cuando llega el evento, mostrar su imagen
     useEffect(() => {
         const ev = props.event;
         if (ev?.image) {
@@ -103,12 +108,14 @@ function EventView(props) {
         }
     }, [props.event]);
 
-    // HANDLE CHANGE PARA INPUTS DEL FORM
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+
+    //-------------- IMAGE HANDLERS --------------//
     const handleImageChange = (e) => {
         const file = e.target.files?.[0] || null;
         setImageFile(file);
@@ -133,15 +140,14 @@ function EventView(props) {
         }
     };
 
-    // sube la imagen si hay archivo seleccionado y devuelve la URL
     const uploadImageIfNeeded = async () => {
-        if (!imageFile) return formData.image || ""; // mantener la URL existente si no se cambia
+        if (!imageFile) return formData.image || "";
         const fd = new FormData();
         fd.append("file", imageFile);
         const res = await fetch("/api/upload", { method: "POST", body: fd });
         if (!res.ok) throw new Error("Error subiendo imagen");
         const data = await res.json();
-        return data.url; // URL pública
+        return data.url;
     };
 
     const executeSubmit = async (e) => {
@@ -151,7 +157,6 @@ function EventView(props) {
         try {
             console.log("EventView - formData antes de enviar:", JSON.stringify(formData, null, 2));
 
-            // Validación mínima
             const functions = (formData.functions || [])
                 .filter(f => (f.name ?? "").trim() && f.venueId && f.startDate && f.endDate);
 
@@ -161,15 +166,17 @@ function EventView(props) {
                 return;
             }
 
-            // Genera un eventId para asociar en funciones y zonas (si no viene uno)
             const eventId = formData.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "00000000-0000-0000-0000-000000000000");
 
-            // Construye exactamente el JSON requerido
             const payload = {
                 event: {
                     name: String(formData.name ?? ""),
                     description: String(formData.description ?? ""),
                     status: String(formData.state ?? "Creado"),
+                    // Solo camelCase como en Swagger
+                    discountCode: String(formData.discountCode ?? ""),
+                    discountPer: Number(formData.discountPer ?? 0),
+                    discountStatus: String(formData.discountStatus ?? "Inactivo"),
                 },
                 functions: functions.map(f => ({
                     name: String(f.name ?? ""),
@@ -184,11 +191,11 @@ function EventView(props) {
                     .map(z => ({
                         name: String(z.name ?? ""),
                         price: Number(z.price ?? 0),
+                        capacity: Number(z.capacity ?? 0),
                         eventId: eventId,
                     })),
             };
 
-            // Log JSON exacto antes de enviar
             console.log("EventView - payload EXACTO:", JSON.stringify(payload, null, 2));
 
             const res = await dispatch(createEventFull({ payload }));
@@ -217,9 +224,9 @@ function EventView(props) {
     };
 
     const applyFunctions = (functionsList) => {
-        setFormData(prev => ({ ...prev, functions: functionsList }));
+        const next = normalizeFunctions(functionsList);
+        setFormData(prev => ({ ...prev, functions: next }));
     };
-
     const applyZones = (zonesList) => {
         setFormData(prev => ({ ...prev, zones: zonesList }));
     };
@@ -381,12 +388,10 @@ function EventView(props) {
 
                             <div className="h-px w-full bg-gray-200 my-2 sm:col-span-2" />
 
-                            {/* FUNCTIONS TITLE */}
+                            {/* FUNCTIONS */}
                             <div className="sm:col-span-2">
                                 <h2 className="text-xl font-bold text-gray-900">Funciones</h2>
                             </div>
-
-                            {/* INSERT: FunctionView */}
                             <div className="sm:col-span-2">
                                 <FunctionsEditor
                                     value={formData.functions}
@@ -402,6 +407,58 @@ function EventView(props) {
                                 <ZoneEditor
                                     value={formData.zones}
                                     onChange={applyZones}
+                                />
+                            </div>
+
+                            <div className="h-px w-full bg-gray-200 my-4 sm:col-span-2" />
+                            <div className="sm:col-span-2">
+                                <h2 className="text-xl font-bold text-gray-900">Descuento</h2>
+                            </div>
+                            {/* ESTADO DEL CÓDIGO */}
+                            <div className="sm:col-span-2 flex items-center justify-between gap-3">
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-900">Estado del código</label>
+                                    <p className="text-xs text-gray-500">Activa o desactiva el código de descuento.</p>
+                                </div>
+                                <label className="inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={formData.discountStatus === "Activo"}
+                                        onChange={(e) => setFormData(prev => ({
+                                            ...prev,
+                                            discountStatus: e.target.checked ? "Activo" : "Inactivo",
+                                        }))}
+                                    />
+                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand relative" />
+                                    <span className="ml-2 text-sm text-gray-900">{formData.discountStatus === "Activo" ? "Activo" : "Inactivo"}</span>
+                                </label>
+                            </div>
+                            {/* CODE */}
+                            <div className="sm:col-span-2">
+                                <label htmlFor="discountCode" className="block mb-2 text-sm font-medium text-gray-900">Codigo</label>
+                                <input
+                                    type="text"
+                                    name="discountCode"
+                                    id="discountCode"
+                                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"
+                                    required
+                                    value={formData.discountCode}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            {/* PERCENTAGE */}
+                            <div className="sm:col-span-2">
+                                <label htmlFor="discountPer" className="block mb-2 text-sm font-medium text-gray-900">Porcentaje</label>
+                                <input
+                                    type="text"
+                                    name="discountPer"
+                                    id="discountPer"
+                                    inputMode="numeric"
+                                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"
+                                    required
+                                    value={formData.discountPer}
+                                    onChange={handleChange}
                                 />
                             </div>
 

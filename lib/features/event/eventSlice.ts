@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { apiEvent } from "../../axios";
 import { getAuthData } from "../../utils/authHelpers";
 
@@ -10,7 +10,7 @@ export interface Location {
 }
 
 export interface Venue {
-    id?: string; // ADD
+    id?: string;
     name: string;
     capacity: number;
     address: string;
@@ -26,25 +26,29 @@ export interface EventFunction {
 }
 
 export interface Zone {
-    id: string; // GUID
+    id: string;
     name: string;
     price: number;
+    capacity: number;
 }
 
 export interface Event {
-    id: string; // GUID
+    id: string;
     name: string;
     description: string;
     state: EventStatus;
     image: string; // URL de imagen
+    discountCode?: string;
+    discountPer?: number;
+    discountStatus?: string;
     zones: Zone[];
     functions: EventFunction[];
 }
 
 export interface Country {
-    code: string;      // countryId
-    name: string;      // country name
-    cities: string[];  // cities (names)
+    code: string;
+    name: string;
+    cities: string[];
 }
 
 type EventsState = {
@@ -59,8 +63,8 @@ type EventsState = {
     loadingCountries: boolean;
     cities: string[];
     loadingCities: boolean;
-    venues: Venue[]; // ADD
-    loadingVenues: boolean; // ADD
+    venues: Venue[];
+    loadingVenues: boolean;
 };
 
 const initialState: EventsState = {
@@ -75,8 +79,8 @@ const initialState: EventsState = {
     loadingCountries: false,
     cities: [],
     loadingCities: false,
-    venues: [], // ADD
-    loadingVenues: false, // ADD
+    venues: [],
+    loadingVenues: false,
 };
 
 // -------------------- MOCK --------------------
@@ -88,8 +92,8 @@ export const mockEvents: Event[] = [
         state: "AVAILABLE",
         image: "/images/event-placeholder.png",
         zones: [
-            { id: "z-100", name: "Platea", price: 75.0 },
-            { id: "z-101", name: "Palco", price: 120.0 },
+            { id: "z-100", name: "Platea", price: 75.0, capacity: 300 },
+            { id: "z-101", name: "Palco", price: 120.0, capacity: 100 },
         ],
         functions: [
             {
@@ -113,8 +117,8 @@ export const mockEvents: Event[] = [
         state: "Creado",
         image: "/images/event-placeholder.png",
         zones: [
-            { id: "z-200", name: "General", price: 20.0 },
-            { id: "z-201", name: "VIP", price: 60.0 },
+            { id: "z-200", name: "General", price: 20.0, capacity: 1000 },
+            { id: "z-201", name: "VIP", price: 60.0, capacity: 200 },
         ],
         functions: [
             {
@@ -141,24 +145,51 @@ export async function fetchEventsMock(): Promise<Event[]> {
 const normalizeState = (s: unknown): EventStatus => {
     if (typeof s !== "string") return "Creado";
     const upper = s.trim().toUpperCase();
-    // Soporta: Creado/Disponible/Terminado o inglés
     if (["Creado", "CREADO"].includes(upper)) return "Creado";
     if (["AVAILABLE", "DISPONIBLE"].includes(upper)) return "AVAILABLE";
     if (["FINISHED", "TERMINADO"].includes(upper)) return "FINISHED";
     return upper;
 };
 
-// Normalizador (reutilizable)
+const normalizeDiscountCode = (e: any): string => String(
+    e?.discountCode ??
+    e?.discount_code ??
+    e?.codigoDescuento ??
+    e?.codigo_descuento ??
+    ""
+);
+
+const normalizeDiscountPer = (e: any): number => Number(
+    e?.discountPer ??
+    e?.discount_per ??
+    e?.discountPercentage ??
+    e?.discount_percentage ??
+    e?.porcentajeDescuento ??
+    0
+);
+
+const normalizeDiscountStatus = (e: any): string => {
+    const raw = e?.discountStatus ?? e?.discount_status ?? e?.estadoDescuento ?? e?.discountEnabled ?? e?.isDiscountActive;
+    if (typeof raw === "boolean") return raw ? "Activo" : "Inactivo";
+    if (typeof raw === "string" && raw.trim().length) return raw;
+    return "Inactivo";
+};
+
+
 const normalizeEvent = (e: any): Event => ({
     id: String(e.id ?? e.eventId ?? crypto.randomUUID?.() ?? `${Date.now()}`),
     name: String(e.name ?? ""),
     description: String(e.description ?? ""),
     state: normalizeState(e.state),
     image: String(e.image ?? e.eventImage ?? "/images/event-placeholder.png"),
+    discountCode: normalizeDiscountCode(e),
+    discountPer: normalizeDiscountPer(e),
+    discountStatus: normalizeDiscountStatus(e),
     zones: ((e.zones ?? e.zone) ?? []).map((z: any): Zone => ({
         id: String(z.id ?? z.zoneId ?? crypto.randomUUID?.() ?? `${Date.now()}`),
         name: String(z.name ?? ""),
         price: Number(z.price ?? 0),
+        capacity: Number(z.capacity ?? 0),
     })),
     functions: ((e.functions ?? e.function) ?? []).map((f: any): EventFunction => ({
         name: String(f.name ?? ""),
@@ -189,7 +220,6 @@ export const fetchEvents = createAsyncThunk<Event[]>(
     "events/fetchEvents",
     async (_, { rejectWithValue }) => {
         try {
-            // BD: lista de eventos desde /api/event
             const { data } = await apiEvent.get("/api/event");
             const list = Array.isArray(data) ? data : [];
 
@@ -204,17 +234,20 @@ export const fetchEvents = createAsyncThunk<Event[]>(
                     description: String(ev.description ?? ""),
                     state: normalizeState(ev.status ?? ev.state ?? "Creado"),
                     image: "/images/event-placeholder.png",
+                    discountCode: normalizeDiscountCode(ev),
+                    discountPer: normalizeDiscountPer(ev),
+                    discountStatus: normalizeDiscountStatus(ev),
                     zones: zones.map((z: any): Zone => ({
                         id: String(z.id ?? z.zoneId ?? ""),
                         name: String(z.name ?? ""),
                         price: Number(z.price ?? 0),
+                        capacity: Number(z.capacity ?? 0),
                     })),
                     functions: funcs.map((f: any): EventFunction => ({
                         name: String(f.name ?? ""),
                         description: String(f.description ?? ""),
                         startDate: String(f.startDate ?? ""),
                         endDate: String(f.endDate ?? ""),
-                        // El backend solo entrega venueId; se deja venue vacío por ahora.
                         venue: {
                             name: "",
                             capacity: 0,
@@ -246,17 +279,20 @@ export const fetchEvent = createAsyncThunk<Event, { id: string }>(
                 description: String(ev.description ?? ""),
                 state: normalizeState(ev.status ?? ev.state ?? "Creado"),
                 image: "/images/event-placeholder.png",
+                discountCode: normalizeDiscountCode(ev),
+                discountPer: normalizeDiscountPer(ev),
+                discountStatus: normalizeDiscountStatus(ev),
                 zones: zones.map((z: any): Zone => ({
                     id: String(z.id ?? z.zoneId ?? ""),
                     name: String(z.name ?? ""),
                     price: Number(z.price ?? 0),
+                    capacity: Number(z.capacity ?? 0),
                 })),
                 functions: funcs.map((f: any): EventFunction => ({
                     name: String(f.name ?? ""),
                     description: String(f.description ?? ""),
                     startDate: String(f.startDate ?? ""),
                     endDate: String(f.endDate ?? ""),
-                    // venueId viene en la función; si necesitas detalles, podrías enriquecer luego
                     venue: {
                         name: "",
                         capacity: 0,
@@ -364,18 +400,13 @@ export const updateEvent = createAsyncThunk<Event, { id: string; event: Partial<
     }
 );
 
-
-
 export const fetchCountries = createAsyncThunk<Country[]>(
     "events/fetchCountries",
     async (_, { rejectWithValue }) => {
         try {
             const { data } = await apiEvent.get("/api/location");
             const list = Array.isArray(data) ? data : [];
-
-            // Solo países: type === 0
             const countriesOnly = list.filter((loc: any) => Number(loc?.type) === 0);
-
             return countriesOnly.map((loc: any) => ({
                 code: String(loc.locationId ?? loc.id ?? ""),
                 name: String(loc.name ?? loc.country ?? ""),
@@ -426,12 +457,13 @@ export const fetchVenues = createAsyncThunk<Venue[]>(
     }
 );
 
-// Crear evento completo (POST /api/event/create-full)
 export const createEventFull = createAsyncThunk<any, { payload: any }>(
     "events/createEventFull",
     async ({ payload }, { rejectWithValue }) => {
         try {
+            console.log("Creating full event with payload:", payload);
             const { data } = await apiEvent.post("/api/event/create-full", payload);
+            console.log("Created full event response data:", data);
             return data;
         } catch (err: any) {
             return rejectWithValue(err?.response?.data ?? err?.message ?? "Error al crear evento");
@@ -510,7 +542,6 @@ const eventsSlice = createSlice({
     },
     extraReducers: (b) => {
         b
-            // Lista
             .addCase(fetchEvents.pending, (state) => {
                 state.loadingEvents = true;
                 state.error = undefined;
@@ -551,7 +582,6 @@ const eventsSlice = createSlice({
                 state.error = (action.payload as string) ?? action.error.message ?? "Error al cargar funciones";
             })
 
-            // Crear
             .addCase(createEvent.fulfilled, (state, action) => {
                 state.events.push(action.payload);
             })
@@ -559,7 +589,6 @@ const eventsSlice = createSlice({
                 state.error = (action.payload as string) ?? action.error.message ?? "Error al crear evento";
             })
 
-            // Actualizar
             .addCase(updateEvent.fulfilled, (state, action) => {
                 state.events = state.events.map((ev) => (ev.id === action.payload.id ? action.payload : ev));
                 if (state.selectedEvent?.id === action.payload.id) {
@@ -597,7 +626,6 @@ const eventsSlice = createSlice({
             })
             .addCase(fetchVenues.fulfilled, (state, action: PayloadAction<Venue[]>) => {
                 state.loadingVenues = false;
-                // garantiza ids si faltan (BACKUP)
                 state.venues = action.payload.map((v, i) => ({
                     ...v,
                     id: v.id ?? `venue-${i + 1}`,
@@ -607,7 +635,6 @@ const eventsSlice = createSlice({
                 state.loadingVenues = false;
                 state.error = (action.payload as string) ?? action.error.message ?? "Error al cargar venues";
             })
-            // Opcional: manejar estados de createEventFull
             .addCase(createEventFull.pending, (s) => {
                 s.loadingEvent = true;
             })
@@ -639,4 +666,3 @@ const eventsSlice = createSlice({
 });
 
 export default eventsSlice.reducer;
-export { fetchVenues, fetchCountries, fetchCities, createVenue, updateVenue };

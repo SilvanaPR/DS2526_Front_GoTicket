@@ -3,12 +3,14 @@ import React, { useEffect, useState } from "react";
 
 const createEmptyZone = () => ({
     name: "",
-    price: ""
+    price: "",
+    capacity: ""
 });
 
 const cloneZone = (z) => ({
     name: z.name ?? "",
-    price: z.price ?? ""
+    price: z.price ?? "",
+    capacity: z.capacity ?? ""
 });
 
 export default function ZoneEditor({ value = [], onChange }) {
@@ -22,15 +24,20 @@ export default function ZoneEditor({ value = [], onChange }) {
     const propagate = (list) => {
         const normalized = list.map(z => ({
             name: (z.name ?? "").trim(),
-            price: Number(String(z.price ?? "").replace(",", ".")) || 0
+            price: Number(String(z.price ?? "").replace(",", ".")) || 0,
+            capacity: Number(String(z.capacity ?? "").replace(",", ".")) || 0
         }));
-        onChange(normalized); // NO filtrar aquí
+        onChange(normalized);
     };
 
     const updateZone = (idx, field, val) => {
         setZones(prev => {
             const next = prev.map(cloneZone);
-            next[idx][field] = field === "price" ? val.replace(/[^0-9.,]/g, "") : val;
+            if (field === "price" || field === "capacity") {
+                next[idx][field] = val.replace(/[^0-9.,]/g, "");
+            } else {
+                next[idx][field] = val;
+            }
             propagate(next);
             return next;
         });
@@ -89,6 +96,19 @@ export default function ZoneEditor({ value = [], onChange }) {
                                 value={z.price}
                                 onChange={e => updateZone(i, "price", e.target.value)}
                                 placeholder="0.00"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor={`zone-capacity-${i}`} className="block mb-1 text-xs font-medium text-gray-700">Capacidad</label>
+                            <input
+                                id={`zone-capacity-${i}`}
+                                type="text"
+                                inputMode="numeric"
+                                className="w-full bg-white border border-gray-300 rounded p-2 text-sm"
+                                value={z.capacity}
+                                onChange={e => updateZone(i, "capacity", e.target.value)}
+                                placeholder="0"
                                 required
                             />
                         </div>

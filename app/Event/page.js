@@ -6,9 +6,12 @@ import { fetchEvents } from "../../lib/features/event/eventSlice";
 import { ToastContainer, toast } from "react-toastify";
 import SearchBar from "../components/SearchBar";
 import ConfirmationModal from "../components/ConfirmationModal";
+import SelectionModal from "../components/SelectionModal";
+import { useRouter } from "next/navigation";
 
 export default function EventPage() {
   const dispatch = useDispatch();
+  const router = useRouter();
   const events = useSelector(s => s?.events?.events ?? []);
   const loading = useSelector(s => s?.events?.loading ?? false);
   const error = useSelector(s => s?.events?.error ?? null);
@@ -19,6 +22,8 @@ export default function EventPage() {
   const [showModal, setShowModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [loadingDelete, setLoadingDelete] = useState(false);
+  const [showSelectModal, setShowSelectModal] = useState(false);
+  const [eventToNavigate, setEventToNavigate] = useState(null);
 
   const indexOfLastEvent = currentPage * eventsPerPage;
   const indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
@@ -46,6 +51,23 @@ export default function EventPage() {
   const confirmDelete = (ev) => {
     setEventToDelete(ev);
     setShowModal(true);
+  };
+
+  const openSelect = (ev) => {
+    setEventToNavigate(ev);
+    setShowSelectModal(true);
+  };
+
+  const handleSelectOption = (value) => {
+    if (!eventToNavigate) return;
+    const id = eventToNavigate.id;
+    if (value === 'client') {
+      router.push(`/Event/Detail/${id}`);
+    } else {
+      router.push(`/Event/${id}`);
+    }
+    setShowSelectModal(false);
+    setEventToNavigate(null);
   };
 
   const handleConfirmDelete = async () => {
@@ -101,6 +123,7 @@ export default function EventPage() {
             <EventCard
               key={ev.id}
               event={ev}
+              onTitleClick={() => openSelect(ev)}
               onDeleteClick={() => confirmDelete(ev)}
             />
           ))}
@@ -131,6 +154,16 @@ export default function EventPage() {
               </div>
             ) : "Eliminar"}
           </ConfirmationModal>
+        )}
+
+        {showSelectModal && (
+          <SelectionModal
+            onCancel={() => { setShowSelectModal(false); setEventToNavigate(null); }}
+            onSelect={handleSelectOption}
+            message={"¿Cómo deseas ver el evento?"}
+            optionA={{ label: 'Vista de Cliente', value: 'client' }}
+            optionB={{ label: 'Detalle de Evento', value: 'detail' }}
+          />
         )}
 
         <ToastContainer />

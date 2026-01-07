@@ -17,7 +17,7 @@ export default function ConfirmationModal({ onCancel, onConfirm, message, loadin
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="px-4 py-2 rounded-md bg-brand hover:bg-brandLight text-white flex items-center justify-center min-w-[100px]"
+                        className="px-4 py-2 rounded-md bg-brand hover:opacity-90 text-white flex items-center justify-center min-w-[100px]"
                         disabled={loading}
                     >
                         {loading ? (

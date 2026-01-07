@@ -471,6 +471,20 @@ export const createEventFull = createAsyncThunk<any, { payload: any }>(
     }
 );
 
+export const updateEventFull = createAsyncThunk<any, { payload: any }>(
+    "events/updateEventFull",
+    async ({ payload }, { rejectWithValue }) => {
+        try {
+            console.log("Updating full event with payload:", payload);
+            const { data } = await apiEvent.put("/api/event/update-full", payload);
+            console.log("Updated full event response data:", data);
+            return data;
+        } catch (err: any) {
+            return rejectWithValue(err?.response?.data ?? err?.message ?? "Error al actualizar evento");
+        }
+    }
+);
+
 export const createVenue = createAsyncThunk<Venue, {
     name: string;
     capacity: number;
@@ -644,6 +658,9 @@ const eventsSlice = createSlice({
             .addCase(createEventFull.rejected, (s) => {
                 s.loadingEvent = false;
             })
+            .addCase(updateEventFull.pending, (s) => { s.loadingEvent = true; })
+            .addCase(updateEventFull.fulfilled, (s) => { s.loadingEvent = false; })
+            .addCase(updateEventFull.rejected, (s) => { s.loadingEvent = false; })
             .addCase(createVenue.pending, (s) => { s.loadingVenues = true; })
             .addCase(createVenue.fulfilled, (s, a) => {
                 s.loadingVenues = false;

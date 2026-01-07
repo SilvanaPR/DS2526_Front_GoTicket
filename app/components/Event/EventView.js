@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useRef } from "react";
 import ImageReader from "../ImageReader";
 import { useDispatch, useSelector } from "react-redux";
-import { createEventFull } from "../../../lib/features/event/eventSlice";
+import { createEventFull, updateEventFull } from "../../../lib/features/event/eventSlice";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ConfirmationModal from "../ConfirmationModal";
@@ -29,7 +30,7 @@ function EventView(props) {
         functions: [emptyFunction],
         discountCode: "",
         discountPer: 0,
-        discountStatus: "Activo"
+        discountStatus: "Inactivo"
     });
 
     // ADD: estados faltantes
@@ -60,6 +61,7 @@ function EventView(props) {
 
     function normalizeFunctions(funcs = []) {
         const arr = (Array.isArray(funcs) ? funcs : []).map(f => ({
+            id: f.id ?? f.functionId ?? "",
             name: f.name ?? "",
             description: f.description ?? "",
             startDate: toDatetimeLocal(f.startDate ?? ""),
@@ -71,6 +73,7 @@ function EventView(props) {
 
     function normalizeZones(zones = []) {
         return (Array.isArray(zones) ? zones : []).map(z => ({
+            id: z.id ?? z.zoneId ?? "",
             name: z.name ?? "",
             price: String(z.price ?? z.amount ?? 0),
             capacity: String(z.capacity ?? 0),
@@ -80,6 +83,25 @@ function EventView(props) {
     useEffect(() => {
         const ev = props.event;
         if (!ev) return;
+        // store original ids for functions and zones so we can include them in update payloads
+        originalFunctionIdMap.current = {};
+        originalZoneIdMap.current = {};
+        try {
+            const funcs = Array.isArray(ev.functions) ? ev.functions : [];
+            funcs.forEach(f => {
+                const key = `${String(f.name ?? "").trim()}|${new Date(f.startDate ?? "").toISOString()}`;
+                const id = f.id ?? f.functionId ?? null;
+                if (id) originalFunctionIdMap.current[key] = id;
+            });
+            const zones = Array.isArray(ev.zones) ? ev.zones : [];
+            zones.forEach(z => {
+                const key = String(z.name ?? "").trim();
+                const id = z.id ?? z.zoneId ?? null;
+                if (id) originalZoneIdMap.current[key] = id;
+            });
+        } catch (err) {
+            // ignore mapping errors
+        }
 
         setFormData(prev => ({
             id: ev.id ?? "",
@@ -94,6 +116,10 @@ function EventView(props) {
             discountStatus: ev.discountStatus ?? "Activo"
         }));
     }, [props.event]);
+
+    // refs to keep original ids for matching when FunctionsEditor/ZoneEditor strip them
+    const originalFunctionIdMap = useRef({});
+    const originalZoneIdMap = useRef({});
 
     useEffect(() => {
         if (eventFunctions.length) {
@@ -169,7 +195,9 @@ function EventView(props) {
             const eventId = formData.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "00000000-0000-0000-0000-000000000000");
 
             const payload = {
+                ...(formData.id ? { eventId: eventId } : {}),
                 event: {
+                    id: eventId,
                     name: String(formData.name ?? ""),
                     description: String(formData.description ?? ""),
                     status: String(formData.state ?? "Creado"),
@@ -178,30 +206,44 @@ function EventView(props) {
                     discountPer: Number(formData.discountPer ?? 0),
                     discountStatus: String(formData.discountStatus ?? "Inactivo"),
                 },
-                functions: functions.map(f => ({
-                    name: String(f.name ?? ""),
-                    description: String(f.description ?? ""),
-                    startDate: new Date(f.startDate).toISOString(),
-                    endDate: new Date(f.endDate).toISOString(),
-                    eventId: eventId,
-                    venueId: String(f.venueId),
-                })),
+                functions: functions.map(f => {
+                    const startIso = new Date(f.startDate).toISOString();
+                    const key = `${String(f.name ?? "").trim()}|${startIso}`;
+                    const resolvedId = f.id || f.functionId || originalFunctionIdMap.current[key] || undefined;
+                    return {
+                        ...(resolvedId ? { id: resolvedId } : {}),
+                        name: String(f.name ?? ""),
+                        description: String(f.description ?? ""),
+                        startDate: startIso,
+                        endDate: new Date(f.endDate).toISOString(),
+                        eventId: eventId,
+                        venueId: String(f.venueId),
+                    };
+                }),
                 zones: (formData.zones || [])
                     .filter(z => (z.name ?? "").trim() !== "")
-                    .map(z => ({
-                        name: String(z.name ?? ""),
-                        price: Number(z.price ?? 0),
-                        capacity: Number(z.capacity ?? 0),
-                        eventId: eventId,
-                    })),
+                    .map(z => {
+                        const key = String(z.name ?? "").trim();
+                        const resolvedId = z.id || z.zoneId || originalZoneIdMap.current[key] || undefined;
+                        return {
+                            ...(resolvedId ? { id: resolvedId } : {}),
+                            name: String(z.name ?? ""),
+                            price: Number(z.price ?? 0),
+                            capacity: Number(z.capacity ?? 0),
+                            eventId: eventId,
+                        };
+                    }),
             };
+
+            // payload already has eventId first when updating
 
             console.log("EventView - payload EXACTO:", JSON.stringify(payload, null, 2));
 
-            const res = await dispatch(createEventFull({ payload }));
-            if (res.error) throw new Error(res.error.message || "Error al crear evento");
+            const action = formData.id ? updateEventFull : createEventFull;
+            const res = await dispatch(action({ payload }));
+            if (res.error) throw new Error(res.error.message || (formData.id ? "Error al actualizar evento" : "Error al crear evento"));
 
-            toast.success("Evento creado exitosamente", {
+            toast.success(formData.id ? "Evento actualizado exitosamente" : "Evento creado exitosamente", {
                 position: "bottom-right",
                 className: "text-medium py-6 px-8 rounded-md shadow-lg bg-green-100 text-green-700"
             });
@@ -359,6 +401,8 @@ function EventView(props) {
                                 </div>
                             </div>
 
+
+
                             {/* NAME */}
                             <div className="sm:col-span-2">
                                 <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-900">Nombre</label>
@@ -384,6 +428,24 @@ function EventView(props) {
                                     value={formData.description}
                                     onChange={handleChange}
                                 ></textarea>
+                            </div>
+
+                            {/* STATE */}
+                            <div className="sm:col-span-2">
+                                <label htmlFor="state" className="block mb-2 text-sm font-medium text-gray-900">Estado</label>
+                                <select
+                                    name="state"
+                                    id="state"
+                                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"
+                                    required
+                                    value={formData.state}
+                                    onChange={handleChange}
+                                >
+                                    <option value="Creado">Creado</option>
+                                    <option value="Disponible">Disponible</option>
+                                    <option value="Terminado">Terminado</option>
+                                    <option value="Cancelado">Cancelado</option>
+                                </select>
                             </div>
 
                             <div className="h-px w-full bg-gray-200 my-2 sm:col-span-2" />

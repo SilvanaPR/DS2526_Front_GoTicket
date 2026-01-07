@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 
-export default function EventCard({ event, onDeleteClick }) {
+export default function EventCard({ event, onDeleteClick, onTitleClick }) {
   const firstFunction = event.functions?.[0];
   const dateRange = firstFunction
     ? new Date(firstFunction.startDate).toLocaleDateString() +
@@ -13,6 +13,7 @@ export default function EventCard({ event, onDeleteClick }) {
   const minZonePrice = event.zones?.length
     ? Math.min(...event.zones.map(z => z.price))
     : null;
+  const functionsCount = event.functions?.length ?? 0;
 
 
   const placeholder = '/GoTicketIcon.jpg';
@@ -34,22 +35,21 @@ export default function EventCard({ event, onDeleteClick }) {
       </div>
 
       <div className="pt-6">
-        {/* STATE TAG  (Para admin)*/}
+        {/* STATE TAG  (Para admin) Y FUNCTIONS TAG*/}
         <div className="mb-4 flex items-center justify-between gap-4">
           <span className="me-2 rounded bg-brand bg-opacity-20 px-2.5 py-0.5 text-xs font-medium text-brand">
             {event.state}
           </span>
-          {minZonePrice !== null && (
-            <span className="rounded bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-              Desde ${minZonePrice.toFixed(2)}
-            </span>
-          )}
+          <span className="rounded bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+            {functionsCount === 1 ? '1 función' : `${functionsCount} funciones`}
+          </span>
         </div>
 
         {/* TITLE */}
         <Link
           href={`/Event/${event.id}`}
           className="text-lg font-semibold leading-tight text-gray-900 hover:underline"
+          onClick={(e) => { e.preventDefault(); onTitleClick && onTitleClick(); }}
         >
           {event.name}
         </Link>
